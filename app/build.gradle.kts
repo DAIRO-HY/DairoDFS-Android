@@ -16,8 +16,8 @@ android {
         applicationId = "cn.dairo.dfs"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "2.0.2"
+        versionCode = 2
+        versionName = "2.0.3"
 
         //DairoDFS的SDK只编译了这几种CPU的动态库,其他CPU(32位x86模拟器)上安装时直接提示不支持,不会启动就闪退
         ndk {

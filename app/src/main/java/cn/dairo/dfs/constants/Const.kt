@@ -16,6 +16,9 @@ object Const {
     /** 服务器端的GitHub项目地址 */
     const val SERVER_GITHUB_URL = "https://github.com/DAIRO-HY/DairoDFS"
 
+    /** 本App的GitHub仓库,从这里的Release检查更新 */
+    const val APP_GITHUB_REPO = "DAIRO-HY/DairoDFS-Android"
+
     /** 设备标识保存的名字 */
     private const val KEY_DEVICE_ID = "DEVICE_ID"
 
