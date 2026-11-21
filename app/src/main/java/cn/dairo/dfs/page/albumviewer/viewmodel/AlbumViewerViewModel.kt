@@ -119,6 +119,15 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
         /** 按住屏幕时视频的播放倍速 */
         const val VIDEO_SPEED_UP_RATE = 2f
 
+        /** 手机解码不了视频时的错误,和网络错误区分开 */
+        private val DECODER_ERROR_CODES = setOf(
+            PlaybackException.ERROR_CODE_DECODER_INIT_FAILED,
+            PlaybackException.ERROR_CODE_DECODER_QUERY_FAILED,
+            PlaybackException.ERROR_CODE_DECODING_FAILED,
+            PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES,
+            PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED,
+        )
+
         /** 原图解码之后最长边的最大像素数,放大查看时也足够清晰 */
         private const val ORIGINAL_MAX_SIZE = 4096
 
@@ -896,8 +905,11 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
         this.videoPlay()
     }
 
-    /** 播放点击事件 */
-    private fun videoPlay() {
+    /**
+     * 播放点击事件
+     * @param isForceSmooth 不管清晰度设置,直接在线播放流畅视频,原画超出手机解码能力时使用
+     */
+    private fun videoPlay(isForceSmooth: Boolean = false) {
         this.videoIsPlayed = true//标记视频播放过
         this.isVideoReplay = false
 
@@ -907,7 +919,7 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
         //切换清晰度时先停掉之前的播放器,否则之前的视频会继续播放,出现多个声音
         this.stopVideoPlayer()
         val path = FileSdkUtil.cachedPath(this.fm.downloadSource)
-        if (path != null) {//如果该视频文件已经被下载,直接播放已经下载的文件
+        if (path != null && !isForceSmooth) {//如果该视频文件已经被下载,直接播放已经下载的文件
             this.videoPlayer = this.createPlayer(MediaItem.fromUri(Uri.fromFile(File(path))), null, currentTime)
             this.isShowDownloaded = true
             this.videoIsOriginal = true
@@ -920,7 +932,8 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
             Toast.show("未获取到文件信息")
             return
         }
-        val videoSource = this.videoOnlineSource
+        val videoSource = if (isForceSmooth) this.fm.previewVideoSource else this.videoOnlineSource
+        this.isShowDownloaded = false
         this.videoIsOriginal = videoSource.cacheKey == this.fm.downloadSource.cacheKey
         this.videoIsLoading = true
 
@@ -966,12 +979,20 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
                 if (player !== videoPlayer) {
                     return
                 }
+                val isDecoderError = error.errorCode in DECODER_ERROR_CODES
+
+                //原画超出手机的解码能力(比如低端手机播放4K的HEVC视频),有流畅视频时从当前位置改播流畅视频,不改变清晰度设置
+                if (isDecoderError && videoIsOriginal && hasPreviewVideo) {
+                    Toast.show("这台手机不支持播放原画,已切换到流畅")
+                    videoPlay(isForceSmooth = true)
+                    return
+                }
                 stopVideoPlayer()
                 videoIsLoading = false
                 videoIsPlaying = false
                 isVideoReplay = true//再次点击播放时重新加载
                 videoIsPlayed = false//恢复显示缩略图
-                Toast.show("视频加载失败,请检查网络或访问权限")
+                Toast.show(if (isDecoderError) "这台手机不支持播放这个视频的格式" else "视频加载失败,请检查网络或访问权限")
             }
         })
         player.setMediaItem(mediaItem, position)
@@ -981,10 +1002,14 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
         return player
     }
 
+    /** 服务器上有没有流畅视频 */
+    private val hasPreviewVideo: Boolean
+        get() = this.fileProperty?.extraList?.any { it.name == "preview" } == true
+
     /** 视频在线播放时的文件 */
     private val videoOnlineSource: FileSource
         get() {
-            if (this.fileProperty?.extraList?.any { it.name == "preview" } != true) {//没有预览视频，使用原视频
+            if (!this.hasPreviewVideo) {//没有预览视频，使用原视频
                 return this.fm.downloadSource
             }
             return when (SettingStore.videoQuality) {
