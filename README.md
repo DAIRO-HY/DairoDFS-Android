@@ -2,6 +2,18 @@
 
 [DairoDFS](https://github.com/DAIRO-HY/DairoDFS) 的 Android 客户端，Jetpack Compose 编写。功能、界面和代码结构与 [DairoDFS-IOS](https://github.com/DAIRO-HY/DairoDFS-IOS) 保持一致，类名、包名、文件名一一对应，方便两边同步维护。
 
+## 截图
+
+| 相册 | 按月 | 查看图片 | 视频 |
+|:---:|:---:|:---:|:---:|
+| <img src="document/screenshots/album.png" width="180"> | <img src="document/screenshots/month.png" width="180"> | <img src="document/screenshots/viewer.png" width="180"> | <img src="document/screenshots/video.png" width="180"> |
+
+| 文件 | 音乐 | 深色模式 | 我的 |
+|:---:|:---:|:---:|:---:|
+| <img src="document/screenshots/file.png" width="180"> | <img src="document/screenshots/music.png" width="180"> | <img src="document/screenshots/album-dark.png" width="180"> | <img src="document/screenshots/mine.png" width="180"> |
+
+截图中的照片来自 [Unsplash](https://unsplash.com)，音乐是合成的音调。
+
 ## 功能
 
 - 文件：浏览、上传文件和文件夹、上传相册里的照片和视频、创建文件夹、复制、剪切、粘贴、重命名、删除、下载
