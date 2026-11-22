@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import cn.dairo.dfs.api.model.FileModel
 import cn.dairo.dfs.components.DfsImage
 import cn.dairo.dfs.components.ImagePlaceholder
+import cn.dairo.dfs.extension.canThumbOnline
 import cn.dairo.dfs.extension.placeholderIcon
 import cn.dairo.dfs.extension.primaryText
 import cn.dairo.dfs.extension.thumbOnlineSource
@@ -88,12 +89,13 @@ fun AlbumGroupCardView(group: AlbumGroup, width: Dp, onClick: (FileModel) -> Uni
 private fun Photo(photo: AlbumGroupPhoto, width: Dp, height: Dp, onClick: (FileModel) -> Unit) {
     val fm = photo.fm
     Box(Modifier.size(width, height).clip(RoundedCornerShape(10.dp)).clickable { onClick(fm) }) {
-        if (fm.hasThumb) {
+        if (fm.canThumbOnline) {
 
             //按实际像素请求在线生成的图片,这样不会模糊也不会有锯齿,生成期间先显示缩略图
+            //没有缩略图的普通图片,服务器直接用原图生成
             val (w, h) = with(LocalDensity.current) { width.toPx() to height.toPx() }
-            DfsImage(fm.thumbOnlineSource(w, h), Modifier.fillMaxSize(), fallback = fm.thumbSource, placeholder = fm.placeholderIcon)
-        } else {//服务器还没有生成缩略图
+            DfsImage(fm.thumbOnlineSource(w, h), Modifier.fillMaxSize(), fallback = if (fm.hasThumb) fm.thumbSource else null, placeholder = fm.placeholderIcon)
+        } else {//服务器还没有生成缩略图,或者账号关闭了生成缩略图
             ImagePlaceholder(fm.placeholderIcon, Modifier.fillMaxSize())
         }
         Text(

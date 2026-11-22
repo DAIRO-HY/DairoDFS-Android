@@ -21,15 +21,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import cn.dairo.dfs.components.DfsImage
+import cn.dairo.dfs.extension.canThumbOnline
 import cn.dairo.dfs.extension.isAudio
 import cn.dairo.dfs.extension.isFile
 import cn.dairo.dfs.extension.placeholderIcon
 import cn.dairo.dfs.extension.primaryText
 import cn.dairo.dfs.extension.secondaryText
+import cn.dairo.dfs.extension.thumbOnlineSource
 import cn.dairo.dfs.extension.thumbSource
 import cn.dairo.dfs.page.file.entity.FileEntity
 import cn.dairo.ui.util.format
@@ -71,6 +74,12 @@ private fun Thumb(item: FileEntity) {
 
         //和查看页面用同一张缩略图,这样打开图片时不用走网络就能先显示缩略图
         fm.hasThumb -> DfsImage(fm.thumbSource, Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)), placeholder = fm.placeholderIcon)
+
+        //账号关闭了生成缩略图时,普通图片用原图在线生成
+        fm.canThumbOnline -> {
+            val px = with(LocalDensity.current) { 44.dp.toPx() }
+            DfsImage(fm.thumbOnlineSource(px, px), Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)), placeholder = fm.placeholderIcon)
+        }
 
         fm.isAudio -> Box(
             Modifier.size(44.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFFFF2D55)),

@@ -107,6 +107,15 @@ val FileModel.screenImageSource: FileSource
 val FileModel.previewVideoSource: FileSource
     get() = this.extraSource("preview", "mp4")
 
+/**
+ * 兼容版视频:原视频手机播放不了(比如avi、wmv、rm),服务器转成的mp4,分辨率和原视频一样
+ * 有这个文件时不能播放原视频
+ */
+val FileModel.compatVideoSource: FileSource
+
+    //保存到相册时会出现在下载管理里,用原文件名方便辨认,比如 2-1080p_wmv.mp4,和iOS一致
+    get() = this.extraSource("compat", "mp4").copy(name = this.name.substringBeforeLast('.') + ".mp4")
+
 /** 实况照片预览视频 */
 val FileModel.dliveVideoPreviewSource: FileSource
     get() = this.extraSource("preview-dlive", "mp4")
@@ -124,16 +133,29 @@ fun FileModel.dliveVideoSource(ext: String = "mov"): FileSource {
     )
 }
 
+/** 服务器可以直接用原图生成在线图片的格式,账号关闭了生成缩略图时这些图片也能显示 */
+private val DIRECT_IMAGE_EXTENSIONS = listOf("jpg", "jpeg", "png", "bmp", "gif", "webp", "tiff", "tga", "jfif", "ico")
+
+/**
+ * 能不能请求在线生成的图片(thumb_online)
+ * 有缩略图时可以;没有缩略图时(账号关闭了生成缩略图、或者还没处理完),只有普通图片可以,视频、HEIC、RAW、PSD不行
+ */
+val FileModel.canThumbOnline: Boolean
+    get() = this.hasThumb || this.name.substringAfterLast('.', "").lowercase() in DIRECT_IMAGE_EXTENSIONS
+
 /** 图片显示出来之前的占位图标 */
 val FileModel.placeholderIcon: ImageVector
     get() = if (this.isVideo) Icons.Default.Videocam else Icons.Default.Image
 
+/** 视频文件的扩展名,和服务器认识的视频格式一致 */
+private val VIDEO_EXTENSIONS = listOf(
+    "mp4", "mov", "avi", "mkv", "flv", "rm", "rmvb", "3gp", "wmv", "webm",
+    "mpg", "mpeg", "m2ts", "mts", "m4v", "asf", "vob", "f4v",
+)
+
 /** 这是否是一个视频文件 */
 val FileModel.isVideo: Boolean
-    get() {
-        val lowerName = this.name.lowercase()
-        return lowerName.endsWith(".mov") || lowerName.endsWith(".mp4")
-    }
+    get() = this.name.substringAfterLast('.', "").lowercase() in VIDEO_EXTENSIONS
 
 /** 这是否是一个图片文件 */
 val FileModel.isImage: Boolean

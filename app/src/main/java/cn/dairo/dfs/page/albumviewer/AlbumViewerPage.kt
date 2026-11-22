@@ -35,7 +35,9 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import cn.dairo.dfs.components.DfsImage
+import cn.dairo.dfs.extension.canThumbOnline
 import cn.dairo.dfs.extension.isDarkTheme
+import cn.dairo.dfs.extension.screenImageSource
 import cn.dairo.dfs.extension.thumbSource
 import cn.dairo.dfs.page.albumviewer.view.AlbumViewerBackdropView
 import cn.dairo.dfs.page.albumviewer.view.AlbumViewerImageView
@@ -86,7 +88,12 @@ fun AlbumViewerPage(vm: AlbumViewerViewModel, onClose: () -> Unit) {
             val fm = vm.fileModels.getOrNull(index) ?: continue
             val pageModifier = Modifier.fillMaxSize().graphicsLayer { translationX = (index + 1) * vm.screenWidth + vm.hStackOffset }
             when {
-                index != vm.currentIndex -> DfsImage(fm.thumbSource, pageModifier, contentScale = ContentScale.Fit)
+                index != vm.currentIndex -> when {
+                    fm.hasThumb -> DfsImage(fm.thumbSource, pageModifier, contentScale = ContentScale.Fit)
+
+                    //没有缩略图的普通图片,显示适合屏幕的在线图片,切换过去之后查看页也用这张
+                    fm.canThumbOnline -> DfsImage(fm.screenImageSource, pageModifier, contentScale = ContentScale.Fit)
+                }
                 vm.isVideo -> AlbumViewerVideoView(vm, pageModifier)
                 else -> AlbumViewerImageView(vm, pageModifier)
             }

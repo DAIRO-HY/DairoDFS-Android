@@ -26,7 +26,8 @@ fun AlbumViewerVideoView(vm: AlbumViewerViewModel, modifier: Modifier = Modifier
         if (vm.videoIsPlayed && player != null) {//如果视频播放过
             ContentFrame(player, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
         }
-        if (!vm.videoIsPlayed || vm.videoIsLoading) {//视频还没有开始播放时显示缩略图,否则加载期间是黑屏
+        //账号关闭了生成缩略图时视频没有缩略图,这时直接显示黑色背景
+        if ((!vm.videoIsPlayed || vm.videoIsLoading) && vm.fm.hasThumb) {//视频还没有开始播放时显示缩略图,否则加载期间是黑屏
             DfsImage(vm.fm.thumbSource, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
         }
     }

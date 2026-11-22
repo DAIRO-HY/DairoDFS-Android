@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import cn.dairo.dfs.components.DfsImage
 import cn.dairo.dfs.components.ImagePlaceholder
+import cn.dairo.dfs.extension.canThumbOnline
 import cn.dairo.dfs.extension.placeholderIcon
 import cn.dairo.dfs.extension.thumbOnlineSource
 import cn.dairo.dfs.extension.thumbSource
@@ -39,12 +40,13 @@ val TEXT_SHADOW = Shadow(Color.Black, Offset(2f, 2f), 6f)
 fun AlbumGridViewItem(entity: AlbumEntity, size: Dp, isSelectMode: Boolean, modifier: Modifier = Modifier) {
     val fm = entity.fm
     Box(modifier.size(size)) {
-        if (fm.hasThumb) {//如果有缩略图
+        if (fm.canThumbOnline) {
 
             //按实际像素请求在线生成的图片,生成期间先显示缩略图。查看页面用的也是这张缩略图,打开图片时不用走网络就能先显示
+            //没有缩略图的普通图片,服务器直接用原图生成
             val px = with(LocalDensity.current) { size.toPx() }
-            DfsImage(fm.thumbOnlineSource(px, px), Modifier.fillMaxSize(), fallback = fm.thumbSource, placeholder = fm.placeholderIcon)
-        } else {//服务器还没有生成缩略图
+            DfsImage(fm.thumbOnlineSource(px, px), Modifier.fillMaxSize(), fallback = if (fm.hasThumb) fm.thumbSource else null, placeholder = fm.placeholderIcon)
+        } else {//服务器还没有生成缩略图,或者账号关闭了生成缩略图
             ImagePlaceholder(fm.placeholderIcon, Modifier.fillMaxSize())
         }
         val duration = fm.duration

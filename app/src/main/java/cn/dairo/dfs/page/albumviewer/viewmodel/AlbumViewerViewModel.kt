@@ -32,6 +32,7 @@ import cn.dairo.dfs.api.http.ApiHttpBase
 import cn.dairo.dfs.api.model.FileModel
 import cn.dairo.dfs.api.model.FilePropertyModel
 import cn.dairo.dfs.components.DfsImageLoader
+import cn.dairo.dfs.extension.compatVideoSource
 import cn.dairo.dfs.extension.downloadSource
 import cn.dairo.dfs.extension.isDlive
 import cn.dairo.dfs.extension.isVideo
@@ -118,6 +119,9 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
 
         /** 按住屏幕时视频的播放倍速 */
         const val VIDEO_SPEED_UP_RATE = 2f
+
+        /** 兼容版视频的附属文件名,原视频手机播放不了时服务器转成mp4 */
+        private const val COMPAT_EXTRA = "compat"
 
         /** 手机解码不了视频时的错误,和网络错误区分开 */
         private val DECODER_ERROR_CODES = setOf(
@@ -253,6 +257,9 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
 
     /** 下载完成之后是否保存到系统相册 */
     private var isSaveToAlbum = false
+
+    /** 正在下载的文件,保存有兼容版的视频到相册时下载的是兼容版 */
+    private var downloadingSource: FileSource? = null
 
     /** 是否显示操作按钮 */
     var showActionView by mutableStateOf(true)
@@ -418,6 +425,7 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
         this.downloadTip = null
         this.isShowDownloaded = false
         this.isSaveToAlbum = false
+        this.downloadingSource = null
         this.currentIndex = index
         this.uiImage = null
         this.imageLevel = 0
@@ -450,14 +458,16 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
         this.errorMsg = ""
         this.isNetworkFail = false
 
-        //图片和已下载的视频不依赖文件属性,不用等它加载完成,否则网络较差时要一直等待
-        if (!this.isVideo) {
-            this.loadPicture()
-        } else if (FileSdkUtil.cachedPath(this.fm.downloadSource) != null) {
-            this.onVideoPlayClick()
-        }
         val fileProperty = FileSdkUtil.cachedPath(this.fm.propertySource)?.let { path ->
             runCatching { json.decodeFromString(FilePropertyModel.serializer(), File(path).readText()) }.getOrNull()
+        }
+
+        //图片和已下载的视频不依赖文件属性,不用等它加载完成,否则网络较差时要一直等待
+        //有兼容版视频时原视频手机播放不了,要等属性加载完成后在线播放兼容版
+        if (!this.isVideo) {
+            this.loadPicture()
+        } else if (this.localVideoPath != null && fileProperty?.hasExtra(COMPAT_EXTRA) != true) {
+            this.onVideoPlayClick()
         }
         if (fileProperty != null) {//如果属性文件已经存在,解析失败时重新获取
             this.fileProperty = fileProperty
@@ -833,7 +843,7 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
 
     /** 视频播放按钮点击事件 */
     fun onVideoPlayClick() {
-        if (this.fileProperty == null && FileSdkUtil.cachedPath(this.fm.downloadSource) == null) {//文件属性之前加载失败,重新加载,成功后自动播放
+        if (this.fileProperty == null && this.localVideoPath == null) {//文件属性之前加载失败,重新加载,成功后自动播放
             this.loadProperty()
             return
         }
@@ -918,7 +928,7 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
 
         //切换清晰度时先停掉之前的播放器,否则之前的视频会继续播放,出现多个声音
         this.stopVideoPlayer()
-        val path = FileSdkUtil.cachedPath(this.fm.downloadSource)
+        val path = this.localVideoPath
         if (path != null && !isForceSmooth) {//如果该视频文件已经被下载,直接播放已经下载的文件
             this.videoPlayer = this.createPlayer(MediaItem.fromUri(Uri.fromFile(File(path))), null, currentTime)
             this.isShowDownloaded = true
@@ -934,7 +944,7 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
         }
         val videoSource = if (isForceSmooth) this.fm.previewVideoSource else this.videoOnlineSource
         this.isShowDownloaded = false
-        this.videoIsOriginal = videoSource.cacheKey == this.fm.downloadSource.cacheKey
+        this.videoIsOriginal = videoSource.cacheKey != this.fm.previewVideoSource.cacheKey
         this.videoIsLoading = true
 
         //直接播放服务器上的文件,不经过SDK,所以不会产生缓存
@@ -1004,11 +1014,33 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
 
     /** 服务器上有没有流畅视频 */
     private val hasPreviewVideo: Boolean
-        get() = this.fileProperty?.extraList?.any { it.name == "preview" } == true
+        get() = this.fileProperty?.hasExtra("preview") == true
+
+    /** 服务器上有没有兼容版视频,有的话说明手机播放不了原视频 */
+    private val hasCompatVideo: Boolean
+        get() = this.fileProperty?.hasExtra(COMPAT_EXTRA) == true
+
+    /**
+     * 可以直接播放的已下载原视频,没有下载或者有兼容版视频时为null
+     * 文件属性还没加载时不知道有没有兼容版,先当作可以播放
+     */
+    private val localVideoPath: String?
+        get() = if (this.hasCompatVideo) null else FileSdkUtil.cachedPath(this.fm.downloadSource)
+
+    /** 服务器上有没有这个附属文件 */
+    private fun FilePropertyModel.hasExtra(name: String): Boolean = this.extraList.any { it.name == name }
 
     /** 视频在线播放时的文件 */
     private val videoOnlineSource: FileSource
         get() {
+            if (this.hasCompatVideo) {//原视频手机播放不了,只能在兼容版和流畅版里选
+                val preview = if (this.hasPreviewVideo) this.fm.previewVideoSource else this.fm.compatVideoSource
+                return when (SettingStore.videoQuality) {
+                    SettingStore.VIDEO_QUALITY_ORIGINAL -> this.fm.compatVideoSource
+                    SettingStore.VIDEO_QUALITY_SMOOTH -> preview
+                    else -> if (SettingStore.isLanServer) this.fm.compatVideoSource else preview
+                }
+            }
             if (!this.hasPreviewVideo) {//没有预览视频，使用原视频
                 return this.fm.downloadSource
             }
@@ -1263,14 +1295,18 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
         this.isSaveToAlbum = isSaveToAlbum
         this.downloadTip = ""
 
+        //有兼容版视频时原视频手机播放不了,存进相册也没用,改为保存兼容版
+        val source = if (isSaveToAlbum && this.hasCompatVideo) this.fm.compatVideoSource else this.fm.downloadSource
+        this.downloadingSource = source
+
         //添加下载,如果文件在缓存中,则将缓存标记为永久保存
         try {
-            FileSdkUtil.download(this.fm.downloadSource)
+            FileSdkUtil.download(source)
         } catch (e: Throwable) {
             this.downloadFinish(e.fileSdkMessage)
             return
         }
-        if (FileSdkUtil.cachedPath(this.fm.downloadSource) != null) {//文件已经被下载
+        if (FileSdkUtil.cachedPath(source) != null) {//文件已经被下载
             this.downloadFinish()
         }
     }
@@ -1280,7 +1316,7 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
         if (!this.isDownloading) {
             return
         }
-        val id = FileSdkUtil.cacheId(this.fm.downloadSource) ?: return
+        val id = this.downloadingSource?.let { FileSdkUtil.cacheId(it) } ?: return
         when (event) {
             is Event.Progress -> {
                 val size = event.size
@@ -1309,14 +1345,18 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
      * @param errorMsg 下载失败时的错误信息
      */
     private fun downloadFinish(errorMsg: String = "") {
-        val path = FileSdkUtil.cachedPath(this.fm.downloadSource)
+        val source = this.downloadingSource ?: this.fm.downloadSource
+        val isOriginal = source.cacheKey == this.fm.downloadSource.cacheKey
+        val path = FileSdkUtil.cachedPath(source)
         if (path != null) {//文件不一定下载成功,所以这里要加判断
             if (this.isSaveToAlbum) {// 下载完成之后保存到相册
-                this.saveToAlbum(this.fm, path)
+                this.saveToAlbum(this.fm, path, isOriginal)
             } else {
                 Toast.show("下载完成")
             }
-            if (this.isVideo && !this.isShowDownloaded) {//当前显示的视频并非已下载版
+
+            //有兼容版视频时不播放下载的原视频
+            if (isOriginal && this.isVideo && !this.isShowDownloaded && this.localVideoPath != null) {//当前显示的视频并非已下载版
                 this.isVideoReplay = true
                 if (this.videoIsPlaying) {//如果当前视频正在播放中,则重新播放已经下载的版本
                     this.onVideoPlayClick()
@@ -1329,10 +1369,14 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
         //取消下载模式
         this.downloadTip = null
         this.isSaveToAlbum = false
+        this.downloadingSource = null
     }
 
-    /** 保存到系统相册,实况照片只保存照片部分 */
-    private fun saveToAlbum(fm: FileModel, path: String) {
+    /**
+     * 保存到系统相册,实况照片只保存照片部分
+     * @param isOriginal 保存的是否原文件,不是时保存的是兼容版视频(mp4)
+     */
+    private fun saveToAlbum(fm: FileModel, path: String, isOriginal: Boolean) {
         this.scope.launch {
             val error = withContext(Dispatchers.IO) {
                 runCatching {
@@ -1340,7 +1384,8 @@ class AlbumViewerViewModel(fileModels: List<FileModel>, index: Int) : Observable
                         val info = DliveUtil.getInfo(path) ?: throw IllegalStateException("实况照片格式不正确")
                         MediaStoreUtil.save(fm.name.substringBeforeLast('.') + "." + info.photoExt, false) { ByteArrayInputStream(info.photoData) }
                     } else {
-                        MediaStoreUtil.save(fm.name, fm.isVideo) { File(path).inputStream() }
+                        val name = if (isOriginal) fm.name else fm.name.substringBeforeLast('.') + ".mp4"
+                        MediaStoreUtil.save(name, fm.isVideo) { File(path).inputStream() }
                     }
                 }.exceptionOrNull()
             }

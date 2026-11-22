@@ -144,6 +144,7 @@ private fun groupLabel(group: String): String {
         "thumb" -> "缩略图"
         "avatar" -> "头像"
         "preview" -> "预览文件"
+        "compat" -> "兼容版视频"
         "thumb-online" -> "在线生成的图片"
         "preview-dlive" -> "实况预览视频"
         "dlive" -> "实况视频"
