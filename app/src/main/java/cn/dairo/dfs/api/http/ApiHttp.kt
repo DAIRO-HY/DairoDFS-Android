@@ -118,6 +118,9 @@ class ApiHttp<T>(
     /** 最终回调 */
     private var finishFunc: (() -> Unit)? = null
 
+    /** 登录失效时的回调,设置之后不再跳转到登录页面 */
+    private var unauthorizedFunc: (() -> Unit)? = null
+
     /**
      * 请求失败时的回调
      */
@@ -139,6 +142,15 @@ class ApiHttp<T>(
      */
     fun finish(block: () -> Unit): ApiHttp<T> {
         this.finishFunc = block
+        return this
+    }
+
+    /**
+     * 登录失效(401)时的回调,设置之后不再退出登录并跳转到登录页面
+     * 用于分享上传这类不在App主界面里的页面
+     */
+    fun unauthorized(block: () -> Unit): ApiHttp<T> {
+        this.unauthorizedFunc = block
         return this
     }
 
@@ -325,6 +337,11 @@ class ApiHttp<T>(
                 return
             }
             successFunc(result.getOrThrow())
+            return
+        }
+        val unauthorizedFunc = this.unauthorizedFunc
+        if (code == 401 && this.isAuth && unauthorizedFunc != null) {
+            unauthorizedFunc()
             return
         }
         if (code == 401 && this.isAuth && SettingStore.isLogin) {

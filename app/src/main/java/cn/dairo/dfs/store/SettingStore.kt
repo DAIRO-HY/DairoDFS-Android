@@ -293,6 +293,9 @@ object SettingStore {
     /** 记录最后打开的文件夹 */
     var lastOpenFolder: String by StringPreference("LAST_OPEN_FOLDER", "")
 
+    /** 上次从其他App分享文件时选择的文件夹,和文件页的lastOpenFolder分开记录 */
+    var shareLastFolder: String by StringPreference("SHARE_LAST_FOLDER", "")
+
     /*----------------------------------------------------------------------------------*/
 
     /** 自动 */

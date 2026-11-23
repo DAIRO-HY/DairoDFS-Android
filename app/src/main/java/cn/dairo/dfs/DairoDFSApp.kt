@@ -8,6 +8,7 @@ import cn.dairo.dfs.components.DfsImageLoader
 import cn.dairo.dfs.page.systemalbum.view.clearSystemAlbumThumbCache
 import cn.dairo.dfs.util.FileBackgroundTransfer
 import cn.dairo.dfs.util.FileSdkUtil
+import cn.dairo.dfs.util.ShareUploadReceiver
 
 class DairoDFSApp : Application() {
 
@@ -19,6 +20,9 @@ class DairoDFSApp : Application() {
 
         //让上传和下载在App进入后台后继续
         FileBackgroundTransfer.start()
+
+        //其他App分享的文件上传完成之后删除复制的文件
+        ShareUploadReceiver.start()
 
         //App前后台状态
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {

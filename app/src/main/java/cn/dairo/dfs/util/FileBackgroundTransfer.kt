@@ -12,10 +12,12 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import androidx.activity.ComponentActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import cn.dairo.dfs.MainActivity
 import cn.dairo.dfs.R
 import cn.dairo.file.sdk.CacheMode
@@ -105,13 +107,14 @@ object FileBackgroundTransfer {
             return
         }
         val context = DairoUI.context
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !this.isPermissionRequested &&
+        //主界面在后台时(比如从其他App分享文件)不申请,否则会把主界面带到前台,下次在App里传输时再申请
+        val activity = AppActivity.current as? ComponentActivity
+        val isForeground = activity?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) == true
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !this.isPermissionRequested && isForeground &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
             this.isPermissionRequested = true
-            AppActivity.current?.let {
-                ActivityCompat.requestPermissions(it, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0)
-            }
+            ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 0)
         }
         try {
             ContextCompat.startForegroundService(context, Intent(context, FileTransferService::class.java))

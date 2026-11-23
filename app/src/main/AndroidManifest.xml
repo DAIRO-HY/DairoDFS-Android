@@ -56,6 +56,34 @@
             </intent-filter>
         </activity>
 
+        <!--
+        在其他App里分享图片、视频和文件到DairoDFS,选择文件夹之后上传
+        taskAffinity为空:和主界面不在同一个任务里,分享时不会把主界面带出来;不显示在最近任务里
+        -->
+        <activity
+            android:name=".ShareActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|uiMode|density"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:taskAffinity=""
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+        </activity>
+
         <!--上传、下载期间在通知栏显示进度,App进入后台之后继续传输-->
         <service
             android:name=".util.FileTransferService"
