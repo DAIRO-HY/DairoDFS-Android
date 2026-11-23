@@ -4,7 +4,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -45,23 +44,26 @@ fun FileOptionBarView(vm: FileViewModel, modifier: Modifier = Modifier) {
         OptionBtn(Icons.Default.Home, "根目录") {//加载首页数据
             vm.loadSubFile("")
         }
-        if (vm.currentFolder.isNotEmpty()) {//页面刚打开还没有路径
-            Box(
-                Modifier.weight(1f, fill = false).height(36.dp).liquidGlassBackground(RoundedCornerShape(18.dp)).padding(horizontal = 14.dp),
-                contentAlignment = Alignment.Center,
-            ) {
+        //占满中间剩下的宽度,右边的按钮始终靠右;路径短时靠左显示,太长时省略前面的部分
+        //不能和路径各用一个weight,否则剩下的宽度会被平分,路径短时右边的按钮会偏到中间
+        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+            if (vm.currentFolder.isNotEmpty()) {//页面刚打开还没有路径
+                Box(
+                    Modifier.height(36.dp).liquidGlassBackground(RoundedCornerShape(18.dp)).padding(horizontal = 14.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
 
-                //路径太长时优先显示当前文件夹
-                Text(
-                    vm.currentFolder,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.primaryText,
-                    maxLines = 1,
-                    overflow = TextOverflow.StartEllipsis,
-                )
+                    //路径太长时优先显示当前文件夹
+                    Text(
+                        vm.currentFolder,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.primaryText,
+                        maxLines = 1,
+                        overflow = TextOverflow.StartEllipsis,
+                    )
+                }
             }
         }
-        Spacer(Modifier.weight(1f))
         OptionBtn(if (vm.isSelectMode) Icons.Default.Close else Icons.Default.MoreHoriz, if (vm.isSelectMode) "取消选择" else "选择") {
             vm.isShowAddView = false
             vm.isSelectMode = !vm.isSelectMode
